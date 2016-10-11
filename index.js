@@ -87,7 +87,11 @@ app.post('/user/authenticate', function (req, res) {
 })
 
 app.get('/user/:id(\\d+)/', function (req, res) {
-  returnQuery('SELECT * FROM User WHERE id = ' + req.params.id + ';', res)
+  returnQuery('SELECT * FROM User WHERE id = ' + req.params.id + ';', res);
+})
+
+app.get('/user/list', function (req, res) {
+  returnQuery('SELECT * FROM User');
 })
 
 /*app.post('/user/progress', function(req, res) {
@@ -106,6 +110,12 @@ app.get('/user/:id(\\d+)/', function (req, res) {
     res.send();
   });
 })*/
+
+app.post( '/user/:id(\\d+)/challenge', function (req, res) {
+  req.check('id').notEmpty().isInt();
+  req.check('type').notEmpty().isInt();
+
+})
 
 // Game
 app.get('/game/:id(\\d+)/', function (req, res) {
