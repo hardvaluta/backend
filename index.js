@@ -1,6 +1,8 @@
 // MYSQL
+
 var mysql = require('mysql');
 var connection = mysql.createConnection({
+  multipleStatements: true,
   host     : 'localhost',
   user     : 'root',
   password : '',
@@ -8,7 +10,14 @@ var connection = mysql.createConnection({
 });
 connection.connect();
 
+
+
+
+
+
+
 // App
+
 var express = require('express');
 var bodyParser = require("body-parser");
 var expressValidator = require('express-validator');
@@ -23,6 +32,12 @@ var server = app.listen(8080, function () {
   console.log("Example app listening at http://%s:%s", host, port)
 })
 
+
+
+
+
+
+
 // Convenience
 
 function returnQuery(query, res) {
@@ -35,6 +50,15 @@ function returnQuery(query, res) {
     res.send(rows);
   });
 }
+
+
+
+app.use(function (req, res, next) {
+  console.log(req.method + ' ' + req.path); 
+  next();
+})
+
+
 
 // User
 app.post('/user/create', function (req, res) {
@@ -90,17 +114,57 @@ app.get('/user/:id(\\d+)/', function (req, res) {
   returnQuery('SELECT * FROM User WHERE id = ' + req.params.id + ';', res);
 })
 
-app.get('/user/list', function (req, res) {
-  returnQuery('SELECT * FROM User');
+app.get('/user/all', function (req, res) {
+  returnQuery('SELECT * FROM User', res);
 })
 
-/*app.post('/user/progress', function(req, res) {
-  var id = req.body.id;
-  var count = req.body.count;
-  var difficulty = req.body-parser.difficulty;
-  var score = 1;
+app.post('/user/:id(\\d+)/challenge', function (req, res) {
+  req.check('context_id').notEmpty().isInt();
+  req.check('type').notEmpty().isInt();
 
-  var query = 'UPDATE User SET score = score + ' + score + ' WHERE id = ' +  id + ";";
+  if (req.validationErrors()) {
+    res.status(500).send();
+    return;
+  }
+
+  var query = 'INSERT INTO Game (player1, player2, type) VALUES ('+ req.params.id +', ' + req.body.context_id + ', 1); INSERT INTO Rounds (game_id, round_id) SELECT LAST_INSERT_ID(), id FROM Sentence ORDER BY RAND() LIMIT 4;'
+  connection.query(query, function(err, rows, fields) {
+    if (err) {
+      res.status(505).send();
+      return;
+    }
+
+    res.send()
+  });
+})
+
+
+
+
+
+
+
+
+
+// Game
+app.get('/game/:id(\\d+)', function (req, res) {
+  returnQuery('SELECT * FROM Game WHERE id = ' + req.params.id + ';', res)
+})
+
+app.get('/game/list', function (req, res) {
+  req.check('context_id');
+
+  if (req.validationErrors()) {
+    res.status(500).send();
+    return;
+  }
+
+  var query = 'SELECT * FROM Game WHERE player1 = ' + req.query.context_id + ' OR player2 = ' + req.query.context_id + ';';
+  returnQuery(query, res);
+});
+
+app.post('/game/:id(\\d+)/accept', function (req, res) {
+  var query = 'UPDATE Game SET state = 1 WHERE id = ' + req.params.id + ';';
   connection.query(query, function(err, rows, fields) {
     if (err) {
       res.status(500).send();
@@ -109,44 +173,64 @@ app.get('/user/list', function (req, res) {
 
     res.send();
   });
-})*/
+});
 
-app.post( '/user/:id(\\d+)/challenge', function (req, res) {
-  req.check('id').notEmpty().isInt();
-  req.check('type').notEmpty().isInt();
+app.post('/game/:id(\\d+)/decline', function (req, res) {
+  var query = 'UPDATE Game SET state = 2 WHERE id = ' + req.params.id + ';';
+  connection.query(query, function(err, rows, fields) {
+    if (err) {
+      res.status(500).send();
+      return;
+    }
 
-})
+    res.send();
+  });
+});
 
-// Game
-app.get('/game/:id(\\d+)/', function (req, res) {
-  returnQuery('SELECT * FROM Game WHERE id = ' + req.params.id + ';', res)
-})
+app.get('/game/:id(\\d+)/rounds', function (req, res) {
+  var query = 'SELECT * FROM Rounds INNER JOIN Sentence ON round_id WHERE game_id = ' + req.params.id + ';';
+  returnQuery(query, res);
+});
 
-app.get('/game/current'), function (req, res) {
-  var query = 'SELECT * FROM Game WHERE player1 = ' + req.params.id + 'OR player2 = ' + req.params.id + ';';
-}
+app.post('/game/:id(\\d+)/progress', function (req, res) {
+  req.check('correct').notEmpty();
+  if (req.validationErrors()) {
+    res.satus(500).send();
+  }
+
+  var query = ''
+  connection.query(query, function(eerr, rows, fields) {
+
+  });
+});
+
+
+
+
+
+
+
 
 // Image
-app.get('/game/:id(\\d+)/', function (req, res) {
+app.get('/image/:id(\\d+)/', function (req, res) {
    returnQuery('SELECT * FROM Image WHERE id = ' + req.params.id + ';', res)
 })
 
-// Question
-app.get('/question/random', function (req, res) {
-  req.check('difficulty').notEmpty().isInt();
-  req.check('count').notEmpty().isInt();
 
+
+
+app.get('/type/:id(\\d+)', function (req, res) {
+  req.check('count');
   if (req.validationErrors()) {
-    res.status(500).send();
-    return;
+    req.status(505).send()
   }
 
-  returnQuery('SELECT * FROM Question WHERE difficulty = ' + req.query.difficulty + ' ORDER BY RAND() LIMIT ' + req.query.count + ';', res)
-})
+  returnQuery('SELECT * FROM Sentence ORDER BY RAND() LIMIT ' +  req.query.count + ';', res);
+});
 
-app.get('/question/:id(\\d+)/', function (req, res) {
-   returnQuery('SELECT * FROM Question WHERE id = ' + req.params.id + ';', res)
-})
+
+
+
 
 // Data
 
