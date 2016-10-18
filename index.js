@@ -54,7 +54,7 @@ function returnQuery(query, res) {
 
 
 app.use(function (req, res, next) {
-  console.log(req.method + ' ' + req.path); 
+  console.log(req.method + ' ' + req.path);
   next();
 })
 
@@ -127,7 +127,8 @@ app.post('/user/:id(\\d+)/challenge', function (req, res) {
     return;
   }
 
-  var query = 'INSERT INTO Game (player1, player2, type) VALUES ('+ req.params.id +', ' + req.body.context_id + ', 1); INSERT INTO Rounds (game_id, round_id) SELECT LAST_INSERT_ID(), id FROM Sentence ORDER BY RAND() LIMIT 4;'
+  var typeName = req.params.type ? "Sentence" : "Memory"
+  var query = 'INSERT INTO Game (player1, player2, type) VALUES ('+ req.body.context_id +', ' + req.params.id + ', ' + req.params.type + '); INSERT INTO Rounds (game_id, round_id) SELECT LAST_INSERT_ID(), id FROM ' + typeName + 'ORDER BY RAND() LIMIT 4;'
   connection.query(query, function(err, rows, fields) {
     if (err) {
       res.status(505).send();
@@ -176,7 +177,7 @@ app.post('/game/:id(\\d+)/accept', function (req, res) {
 });
 
 app.post('/game/:id(\\d+)/decline', function (req, res) {
-  var query = 'UPDATE Game SET state = 2 WHERE id = ' + req.params.id + ';';
+  var query = 'UPDATE Game SET state = 3 WHERE id = ' + req.params.id + ';';
   connection.query(query, function(err, rows, fields) {
     if (err) {
       res.status(500).send();
@@ -188,7 +189,8 @@ app.post('/game/:id(\\d+)/decline', function (req, res) {
 });
 
 app.get('/game/:id(\\d+)/rounds', function (req, res) {
-  var query = 'SELECT * FROM Rounds INNER JOIN Sentence ON round_id WHERE game_id = ' + req.params.id + ';';
+  var typeName = req.params.type ? "Sentence" : "Memory"
+  var query = 'SELECT * FROM Rounds INNER JOIN '+ typeName + 'ON round_id WHERE game_id = ' + req.params.id + ';';
   returnQuery(query, res);
 });
 
@@ -198,9 +200,14 @@ app.post('/game/:id(\\d+)/progress', function (req, res) {
     res.satus(500).send();
   }
 
-  var query = ''
-  connection.query(query, function(eerr, rows, fields) {
+  var query = 'UPDATE Game SET player1_score = IF(player1 = ' + req.body.context_id + ', ' + req.body.score + ', player1_score), player2_score = IF(player2 = ' + req.body.context_id + ', ' + req.body.score + ', player2_score), state = IF(player2 = ' + req.body.context_id + ', 3, state) WHERE id = ' + req.body.id + ';'
+  connection.query(query, function(err, rows, fields) {
+    if (err) {
+      res.status(505).send();
+      return;
+    }
 
+    res.send()
   });
 });
 
@@ -218,7 +225,7 @@ app.get('/image/:id(\\d+)/', function (req, res) {
 
 
 
-
+// Sentence
 app.get('/type/:id(\\d+)', function (req, res) {
   req.check('count');
   if (req.validationErrors()) {
