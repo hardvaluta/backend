@@ -81,7 +81,7 @@ app.post('/user/create', function (req, res) {
         message = "not_unique_username";
       }
 
-      res.status(500).send(message);
+      res.status(505).send(message);
       return;
     }
 
@@ -127,8 +127,9 @@ app.post('/user/:id(\\d+)/challenge', function (req, res) {
     return;
   }
 
-  var typeName = req.params.type ? "Sentence" : "Memory"
-  var query = 'INSERT INTO Game (player1, player2, type) VALUES ('+ req.body.context_id +', ' + req.params.id + ', ' + req.params.type + '); INSERT INTO Rounds (game_id, round_id) SELECT LAST_INSERT_ID(), id FROM ' + typeName + 'ORDER BY RAND() LIMIT 4;'
+  var typeName = req.body.type == 1 ? "Sentence" : "Memory"
+  var typeCount = req.body.type == 1 ? 4 : 6
+  var query = 'INSERT INTO Game (player1, player2, type) VALUES ('+ req.body.context_id +', ' + req.params.id + ', ' + req.body.type + '); INSERT INTO Rounds (game_id, round_id) SELECT LAST_INSERT_ID(), id FROM ' + typeName + ' ORDER BY RAND() LIMIT ' + typeCount + ';'
   connection.query(query, function(err, rows, fields) {
     if (err) {
       res.status(505).send();
@@ -189,18 +190,18 @@ app.post('/game/:id(\\d+)/decline', function (req, res) {
 });
 
 app.get('/game/:id(\\d+)/rounds', function (req, res) {
-  var typeName = req.params.type ? "Sentence" : "Memory"
-  var query = 'SELECT * FROM Rounds INNER JOIN '+ typeName + 'ON round_id WHERE game_id = ' + req.params.id + ';';
+  var typeName = req.body.type == 1 ? "Sentence" : "Memory"
+  var query = 'SELECT * FROM Rounds INNER JOIN '+ typeName + ' ON round_id WHERE game_id = ' + req.params.id + ';';
   returnQuery(query, res);
 });
 
 app.post('/game/:id(\\d+)/progress', function (req, res) {
-  req.check('correct').notEmpty();
+  req.check('score').notEmpty().isInt();
   if (req.validationErrors()) {
     res.satus(500).send();
   }
 
-  var query = 'UPDATE Game SET player1_score = IF(player1 = ' + req.body.context_id + ', ' + req.body.score + ', player1_score), player2_score = IF(player2 = ' + req.body.context_id + ', ' + req.body.score + ', player2_score), state = IF(player2 = ' + req.body.context_id + ', 3, state) WHERE id = ' + req.body.id + ';'
+  var query = 'UPDATE Game SET player1_score = IF(player1 = ' + req.body.context_id + ', ' + req.body.score + ', player1_score), player2_score = IF(player2 = ' + req.body.context_id + ', ' + req.body.score + ', player2_score), state = IF(player2 = ' + req.body.context_id + ', 3, 2) WHERE id = ' + req.params.id + ';'
   connection.query(query, function(err, rows, fields) {
     if (err) {
       res.status(505).send();
@@ -225,14 +226,15 @@ app.get('/image/:id(\\d+)/', function (req, res) {
 
 
 
-// Sentence
+// Type
 app.get('/type/:id(\\d+)', function (req, res) {
   req.check('count');
   if (req.validationErrors()) {
     req.status(505).send()
   }
 
-  returnQuery('SELECT * FROM Sentence ORDER BY RAND() LIMIT ' +  req.query.count + ';', res);
+  var typeName = req.params.id == 1 ? "Sentence" : "Memory"
+  returnQuery('SELECT * FROM ' + typeName + ' ORDER BY RAND() LIMIT ' +  req.query.count + ';', res);
 });
 
 
@@ -242,5 +244,5 @@ app.get('/type/:id(\\d+)', function (req, res) {
 // Data
 
 app.get('/data/:id(\\d+)/', function (req, res) {
-   res.sendFile('/home/demo/data/images/' + req.params.id + '.png');
+   res.sendFile('/home/demo/data/images/' + req.params.id + '.jpg');
 })
